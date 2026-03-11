@@ -1,0 +1,60 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "macroclaw"
+version = "2026.3.0"
+description = "MacroClaw: Advanced macroeconomic and geopolitical investment assistant"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "anthropic>=0.40.0",
+    "openai>=1.30.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.27.0",
+    "yfinance>=0.2.50",
+    "structlog>=24.0.0",
+    "rich>=13.0.0",
+    "click>=8.1.0",
+    "pandas>=2.0.0",
+    "numpy>=1.26.0",
+    "streamlit>=1.35.0",
+    "plotly>=5.22.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.8.0",
+    "mypy>=1.10.0",
+]
+
+[project.scripts]
+macroclaw = "macroclaw.main:cli"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/macroclaw"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["macroclaw"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
