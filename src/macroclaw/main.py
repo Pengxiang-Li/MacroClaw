@@ -116,6 +116,27 @@ async def _run_analyse(
         task = progress.add_task("Analysing macro environment…", total=None)
         try:
             brief = await agent.run(query)
+            
+            # Save predictions
+            if brief and brief.commodity_action:
+                try:
+                    from macroclaw.memory.predictions import save_prediction
+                    import logging
+                    for ca in brief.commodity_action:
+                        sig_key = ca.asset.replace(" ", "_").upper()
+                        # Fallback try mapping
+                        if sig_key not in brief.signals:
+                            if "WTI" in ca.asset.upper(): sig_key = "WTI_CRUDE"
+                            elif "BRENT" in ca.asset.upper(): sig_key = "BRENT_CRUDE"
+                            elif "GOLD" in ca.asset.upper(): sig_key = "GOLD"
+                            elif "DXY" in ca.asset.upper(): sig_key = "DXY"
+                            elif "JPY" in ca.asset.upper(): sig_key = "USD_JPY"
+                            elif "CHF" in ca.asset.upper(): sig_key = "USD_CHF"
+                        
+                        signal = brief.signals.get(sig_key, "NEUTRAL")
+                        save_prediction(ca.asset, ca.ticker, signal, ca.current_price, brief)
+                except Exception as eval_err:
+                    pass
         except RuntimeError as exc:
             console.print(f"[red]Agent error:[/red] {exc}")
             sys.exit(1)

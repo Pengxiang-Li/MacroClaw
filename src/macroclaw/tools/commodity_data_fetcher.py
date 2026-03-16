@@ -51,6 +51,13 @@ TICKER_MAP: dict[str, str] = {
     # Natural Gas (for future expansion)
     "natgas": "NG=F",
     "natural_gas": "NG=F",
+    # Currencies & Forex
+    "dxy": "DX=F",
+    "usd": "DX=F",
+    "jpy": "JPY=X",
+    "usdjpy": "JPY=X",
+    "chf": "CHF=X",
+    "usdchf": "CHF=X",
 }
 
 # Human-readable labels for output
@@ -62,6 +69,9 @@ ASSET_LABELS: dict[str, str] = {
     "GLD": "SPDR Gold ETF (USD)",
     "SI=F": "Silver Futures (USD/troy oz)",
     "NG=F": "Natural Gas (USD/MMBtu)",
+    "DX=F": "US Dollar Index (DXY)",
+    "JPY=X": "USD/JPY (Japanese Yen)",
+    "CHF=X": "USD/CHF (Swiss Franc)",
 }
 
 VALID_PERIODS = {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y"}
