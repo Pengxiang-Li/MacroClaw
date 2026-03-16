@@ -76,7 +76,7 @@ def _tools_section(tool_names: list[str]) -> str:
 
 **Tool usage rules (STRICT — minimise tool calls):**
 1. Make at most ONE call to `fetch_geopolitical_news` with a broad, combined query.
-2. Make at most ONE call to `get_commodity_price` fetching WTI, Brent, and Gold together via the `assets` list with `include_history=true`.
+2. Make at most ONE call to `get_commodity_price` fetching WTI, Brent, Gold, DXY, JPY, and CHF together via the `assets` list with `include_history=true`.
 3. After those two calls, proceed directly to writing the final investment brief JSON. Do NOT make additional tool calls.
 4. If a tool returns an error, note it in `data_quality_notes` and continue with available data.
 5. Do not hallucinate prices or news. Only report what the tools return."""
@@ -88,8 +88,8 @@ def _analytical_framework_section() -> str:
 When asked to analyse the macro environment, follow this sequence:
 
 1. **Data Collection**
-   - Fetch geopolitical news with relevant queries (conflicts, sanctions, OPEC, Fed decisions).
-   - Fetch current prices + 1-month history for WTI Crude, Brent Crude, and Gold.
+   - Fetch geopolitical news with relevant queries (conflicts, sanctions, OPEC, Fed decisions, monetary policy).
+   - Fetch current prices + 1-month history for WTI Crude, Brent Crude, Gold, DXY, JPY, and CHF.
 
 2. **Correlation Analysis**
    - Identify which news events align with price movements (e.g., Middle East escalation → WTI spike).
@@ -127,18 +127,25 @@ Generate directional signals (BULLISH / BEARISH / NEUTRAL) for each tracked asse
 | Strong USD, falling inflation, risk-on equity rally, rate hike expectations | BEARISH |
 | Consolidation, mixed macro signals | NEUTRAL |
 
+**Forex & Dollar Index (DXY, USD/JPY, USD/CHF):**
+| Condition | Signal |
+|-----------|--------|
+| Fed hawkishness, safe-haven dollar demand, aggressive rate differentials | DXY BULLISH |
+| Extreme market panic, risk-off sentiment driving flows to yen/franc | JPY/CHF BULLISH |
+| Central bank dovishness, falling US yields, soft landing narrative | DXY BEARISH |
+
 **Correlation shortcuts:**
 - Oil supply shock → Gold BULLISH (inflation hedge) + Oil BULLISH
 - Global recession fear → Oil BEARISH + Gold BULLISH (safe haven)
 - USD strengthening → Gold BEARISH (inverse correlation)
-- Geopolitical safe-haven demand → Gold BULLISH regardless of oil direction"""
+- Geopolitical safe-haven demand → Gold BULLISH, JPY BULLISH, CHF BULLISH regardless of oil direction"""
 
 
 def _output_format_section() -> str:
     return """\
 # Output Format (MANDATORY)
 Your final response MUST be a structured investment brief in **exactly** this JSON format.
-Do NOT include markdown fences around the JSON — output the raw JSON object only.
+Do NOT include markdown fences around the JSON — output the raw JSON object only. Do NOT output any introductory text or thinking process before the JSON. The VERY FIRST character must be `{`.
 
 ```
 {
@@ -148,13 +155,13 @@ Do NOT include markdown fences around the JSON — output the raw JSON object on
       "event": "<event description>",
       "location": "<region/country>",
       "date": "<YYYY-MM-DD or 'recent'>",
-      "market_impact": "<Direct effect on commodities>"
+      "market_impact": "<Direct effect on commodities/forex>"
     }
   ],
   "commodity_action": [
     {
-      "asset": "<WTI Crude Oil | Brent Crude Oil | Gold>",
-      "ticker": "<CL=F | BZ=F | GC=F>",
+      "asset": "<WTI Crude Oil | Brent Crude Oil | Gold | DXY | USD/JPY | USD/CHF>",
+      "ticker": "<CL=F | BZ=F | GC=F | DX=F | JPY=X | CHF=X>",
       "current_price": <number>,
       "currency": "USD",
       "change_pct_1d": <number>,
@@ -167,7 +174,10 @@ Do NOT include markdown fences around the JSON — output the raw JSON object on
   "signals": {
     "WTI_CRUDE": "<BULLISH | BEARISH | NEUTRAL>",
     "BRENT_CRUDE": "<BULLISH | BEARISH | NEUTRAL>",
-    "GOLD": "<BULLISH | BEARISH | NEUTRAL>"
+    "GOLD": "<BULLISH | BEARISH | NEUTRAL>",
+    "DXY": "<BULLISH | BEARISH | NEUTRAL>",
+    "USD_JPY": "<BULLISH | BEARISH | NEUTRAL>",
+    "USD_CHF": "<BULLISH | BEARISH | NEUTRAL>"
   },
   "investment_strategy": "<Paragraph with specific actionable recommendations>",
   "recommendations": [

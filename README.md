@@ -24,6 +24,7 @@ MacroClaw is an AI-powered investment analysis tool that monitors global geopoli
 
 ### 📊 Commodity Market Data
 - **yfinance** — real-time prices for WTI Crude (`CL=F`), Brent Crude (`BZ=F`), Gold (`GC=F`)
+- **Forex & Currencies** — tracking US Dollar Index (`DX=F`), and Safe-havens JPY (`JPY=X`), CHF (`CHF=X`)
 - **Alpha Vantage** — supplementary data source (optional API key)
 - 1-month price history with OHLCV data for trend analysis
 
@@ -32,6 +33,7 @@ MacroClaw is an AI-powered investment analysis tool that monitors global geopoli
 - **Signal generation** — BULLISH / BEARISH / NEUTRAL for each tracked asset
 - **Risk classification** — LOW / MEDIUM / HIGH with rationale
 - **Correlation shortcuts** — e.g. Middle East escalation → WTI BULLISH + Gold BULLISH
+- **Historical Backtesting** — SQLite integration to save signals and evaluate prediction accuracy over time
 - **Session memory** — caches tool results to avoid redundant API calls
 
 ### 📋 Structured Investment Brief
@@ -39,7 +41,7 @@ Every analysis produces a JSON-structured investment brief containing:
 - Executive summary of the macro environment
 - Key geopolitical events with market impact assessment
 - Per-asset price action with 1-month trend and geopolitical correlation
-- Directional signals for WTI, Brent, and Gold
+- Directional signals for WTI, Brent, Gold, DXY, JPY, and CHF
 - Risk level with rationale
 - Specific, actionable investment recommendations
 
@@ -47,6 +49,7 @@ Every analysis produces a JSON-structured investment brief containing:
 A sleek Streamlit dashboard with a dark aesthetic:
 - **Market tab** — live price cards with sparklines, per-asset candlestick + EMA20 + volume charts, normalised performance comparison, risk gauge, and signal chart
 - **News tab** — 2-column article grid with tone sentiment bars
+- **Scoring & Win Rate tab** — Track historical LLM signals against actual market movements, complete with total accuracy tracking and signal history tables mapping LLM predictions to asset trends.
 - **Brief tab** — structured investment brief display with one-click analysis trigger
 - Auto-refresh prices, configurable chart period, proxy-aware HTTP
 
@@ -109,8 +112,9 @@ The MacroClaw dashboard provides a real-time view of commodity markets and geopo
 
 | Tab | Contents |
 |-----|----------|
-| **📈 Market** | Live price cards (WTI, Brent, Gold), sparklines, candlestick charts with EMA20 & volume, normalised performance chart, risk gauge, directional signals |
+| **📈 Market** | Live price cards (WTI, Brent, Gold, DXY, USD/JPY, USD/CHF), sparklines, candlestick charts with EMA20 & volume, normalised performance chart |
 | **🌐 News** | Latest geopolitical articles from GDELT, tone sentiment bars, source metadata |
+| **🎯 Scoring & Win Rate**| Historical backtesting UI tracking LLM predictions against actual market movements, tracking total accuracy |
 | **📋 Brief** | Full AI-generated investment brief — executive summary, key events, commodity action, risk level, signals, recommendations |
 
 ---

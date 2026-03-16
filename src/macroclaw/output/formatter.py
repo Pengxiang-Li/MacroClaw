@@ -112,9 +112,9 @@ def parse_brief(llm_text: str) -> InvestmentBrief:
             CommodityAction(
                 asset=ca.get("asset", ""),
                 ticker=ca.get("ticker", ""),
-                current_price=float(ca.get("current_price", 0)),
+                current_price=float(ca.get("current_price") or 0),
                 currency=ca.get("currency", "USD"),
-                change_pct_1d=float(ca.get("change_pct_1d", 0)),
+                change_pct_1d=float(ca.get("change_pct_1d") or 0),
                 period_trend=ca.get("period_trend", ""),
                 geopolitical_correlation=ca.get("geopolitical_correlation", ""),
             )

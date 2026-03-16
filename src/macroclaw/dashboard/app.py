@@ -39,11 +39,17 @@ RED         = "#ff453a"
 ORANGE      = "#ff9f0a"
 PURPLE      = "#bf5af2"
 
-ASSET_COLORS = {"WTI Crude": ORANGE, "Brent Crude": "#ffd60a", "Gold": PURPLE}
+ASSET_COLORS = {
+    "WTI Crude": ORANGE, "Brent Crude": "#ffd60a", "Gold": PURPLE,
+    "DXY": "#32d74b", "USD/JPY": "#ff375f", "USD/CHF": "#5ac8fa"
+}
 SIGNAL_COLORS = {"BULLISH": GREEN, "BEARISH": RED, "NEUTRAL": ORANGE}
 RISK_COLORS   = {"LOW": GREEN, "MEDIUM": ORANGE, "HIGH": RED, "UNKNOWN": TEXT_TER}
 
-TRACKED = {"WTI Crude": "CL=F", "Brent Crude": "BZ=F", "Gold": "GC=F"}
+TRACKED = {
+    "WTI Crude": "CL=F", "Brent Crude": "BZ=F", "Gold": "GC=F",
+    "DXY": "DX=F", "USD/JPY": "JPY=X", "USD/CHF": "CHF=X"
+}
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
@@ -636,7 +642,7 @@ def chart_signals(signals: dict[str, str]) -> go.Figure:
     ))
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        height=180, margin=dict(l=0, r=0, t=0, b=0),
+        height=max(180, len(assets)*40), margin=dict(l=0, r=0, t=0, b=0),
         showlegend=False,
         xaxis=dict(
             range=[-1.5, 1.5],
@@ -672,6 +678,25 @@ def run_analysis(query: str) -> dict:
     reg.register(GeopoliticalNewsFetcher(news_api_key=cfg.news_api_key))
     reg.register(CommodityDataFetcher(alpha_vantage_key=cfg.alpha_vantage_api_key))
     brief = asyncio.run(AgentLoop(cfg, reg, MemoryManager(enabled=False)).run(query))
+    
+    if brief and brief.commodity_action:
+        try:
+            from macroclaw.memory.predictions import save_prediction
+            for ca in brief.commodity_action:
+                sig_key = ca.asset.replace(" ", "_").upper()
+                if sig_key not in brief.signals:
+                    if "WTI" in ca.asset.upper(): sig_key = "WTI_CRUDE"
+                    elif "BRENT" in ca.asset.upper(): sig_key = "BRENT_CRUDE"
+                    elif "GOLD" in ca.asset.upper(): sig_key = "GOLD"
+                    elif "DXY" in ca.asset.upper(): sig_key = "DXY"
+                    elif "JPY" in ca.asset.upper(): sig_key = "USD_JPY"
+                    elif "CHF" in ca.asset.upper(): sig_key = "USD_CHF"
+                
+                signal = brief.signals.get(sig_key, "NEUTRAL")
+                save_prediction(ca.asset, ca.ticker, signal, ca.current_price, brief)
+        except Exception as e:
+            st.error(f"Error saving prediction: {e}")
+
     return brief.raw if brief.raw else {"executive_summary": str(brief.executive_summary)}
 
 
@@ -762,68 +787,80 @@ def tab_market(period: str) -> None:
         )
 
     # Metric cards
-    cols = st.columns(3, gap="medium")
-    for i, (label, d) in enumerate(prices.items()):
-        color = d.get("color", TEXT_TER)
-        with cols[i]:
-            if d.get("price") is None:
+    items = list(prices.items())
+    for row_idx in range(0, len(items), 3):
+        cols = st.columns(3, gap="medium")
+        for j, (label, d) in enumerate(items[row_idx:row_idx+3]):
+            color = d.get("color", TEXT_TER)
+            with cols[j]:
+                if d.get("price") is None:
+                    st.markdown(
+                        f'<div class="metric-card">'
+                        f'<div class="metric-label">{label}</div>'
+                        f'<div style="color:{RED};font-size:13px;margin-top:8px">'
+                        f'⚠ {d.get("error","N/A")[:60]}</div></div>',
+                        unsafe_allow_html=True,
+                    )
+                    continue
+
+                p = d["price"]; pct = d["change_pct"]; chg = d["change"]
+                cls = "up" if pct > 0 else ("down" if pct < 0 else "flat")
+                arrow = _arrow(pct)
+                icon = "🛢️" if "Crude" in label else "🥇" if label == "Gold" else "💵" if "DXY" in label else "💱"
                 st.markdown(
                     f'<div class="metric-card">'
+                    f'<div class="accent-line" style="background:{color}"></div>'
+                    f'<div class="bg-glyph">{icon}</div>'
                     f'<div class="metric-label">{label}</div>'
-                    f'<div style="color:{RED};font-size:13px;margin-top:8px">'
-                    f'⚠ {d.get("error","N/A")[:60]}</div></div>',
+                    f'<div class="metric-ticker">{d["ticker"]}</div>'
+                    f'<div class="metric-price">${p:,.2f}</div>'
+                    f'<div class="metric-change {cls}">'
+                    f'{arrow} {pct:+.2f}% &nbsp;'
+                    f'<span style="font-size:12px;font-weight:400;color:#6e6e73">'
+                    f'({chg:+.2f})</span></div>'
+                    f'<div class="metric-ohlc">'
+                    f'O {d["open_"]:,.2f} &nbsp;·&nbsp; '
+                    f'H {d["high"]:,.2f} &nbsp;·&nbsp; '
+                    f'L {d["low"]:,.2f} &nbsp;·&nbsp; '
+                    f'PC {d["prev_close"]:,.2f}</div>'
+                    f'</div>',
                     unsafe_allow_html=True,
                 )
-                continue
-
-            p = d["price"]; pct = d["change_pct"]; chg = d["change"]
-            cls = "up" if pct > 0 else ("down" if pct < 0 else "flat")
-            arrow = _arrow(pct)
-            icon = "🛢️" if "Crude" in label else "🥇"
-            st.markdown(
-                f'<div class="metric-card">'
-                f'<div class="accent-line" style="background:{color}"></div>'
-                f'<div class="bg-glyph">{icon}</div>'
-                f'<div class="metric-label">{label}</div>'
-                f'<div class="metric-ticker">{d["ticker"]}</div>'
-                f'<div class="metric-price">${p:,.2f}</div>'
-                f'<div class="metric-change {cls}">'
-                f'{arrow} {pct:+.2f}% &nbsp;'
-                f'<span style="font-size:12px;font-weight:400;color:#6e6e73">'
-                f'({chg:+.2f})</span></div>'
-                f'<div class="metric-ohlc">'
-                f'O {d["open_"]:,.2f} &nbsp;·&nbsp; '
-                f'H {d["high"]:,.2f} &nbsp;·&nbsp; '
-                f'L {d["low"]:,.2f} &nbsp;·&nbsp; '
-                f'PC {d["prev_close"]:,.2f}</div>'
-                f'</div>',
-                unsafe_allow_html=True,
-            )
-            # Sparkline
-            df_sp = fetch_ohlcv(d["ticker"], "1mo")
-            if not df_sp.empty:
-                st.plotly_chart(
-                    chart_sparkline(df_sp["Close"], color),
-                    use_container_width=True, config=dict(displayModeBar=False),
-                )
+                # Sparkline
+                df_sp = fetch_ohlcv(d["ticker"], "1mo")
+                if not df_sp.empty:
+                    st.plotly_chart(
+                        chart_sparkline(df_sp["Close"], color),
+                        use_container_width=True, config=dict(displayModeBar=False),
+                        key=f"sparkline_{d['ticker']}_{label}",
+                    )
 
     # Candlestick — per-asset tabs
     st.markdown('<div class="section-label">Price Charts</div>', unsafe_allow_html=True)
+    
+    def _tab_icon(lbl: str) -> str:
+        if "Crude" in lbl: return "🛢️"
+        if lbl == "Gold": return "🥇"
+        if "DXY" in lbl: return "💵"
+        return "💱"
+        
     asset_tabs = st.tabs([
-        f"  {'🛢️' if 'Crude' in lbl else '🥇'}  {lbl}  "
+        f"  {_tab_icon(lbl)}  {lbl}  "
         for lbl in TRACKED
     ])
+
     for tab, (label, ticker) in zip(asset_tabs, TRACKED.items()):
         with tab:
             fig = chart_candlestick(ticker, label, ASSET_COLORS[label], period)
             st.plotly_chart(fig, use_container_width=True,
-                            config=dict(displayModeBar=True, displaylogo=False,
-                                        modeBarButtonsToRemove=["select2d", "lasso2d"]))
+                            config=dict(displayModeBar=True, displaylogo=False, 
+                            modeBarButtonsToRemove=['lasso2d', 'select2d']),
+                            key=f"candlestick_{ticker}_{label}")
 
     # Normalised performance
     st.markdown('<div class="section-label">Relative Performance</div>', unsafe_allow_html=True)
     st.plotly_chart(chart_normalised(period), use_container_width=True,
-                    config=dict(displayModeBar=False))
+                    config=dict(displayModeBar=False), key="normalised_perf_chart")
 
 
 # ── Tab: News ─────────────────────────────────────────────────────────────────
@@ -834,7 +871,7 @@ def tab_news() -> None:
 
     qc, bc = st.columns([5, 1])
     with qc:
-        q = st.text_input("", value="oil gold conflict OPEC sanctions war trade",
+        q = st.text_input("Search News", value="oil gold conflict OPEC sanctions war trade",
                           placeholder="Search…", label_visibility="collapsed",
                           key="news_q")
     with bc:
@@ -1036,6 +1073,93 @@ def tab_brief(brief: dict) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
+# ── Tab: Scoring ──────────────────────────────────────────────────────────────
+
+def tab_scoring() -> None:
+    st.markdown('<div class="section-label">Prediction Performance & Backtesting</div>', unsafe_allow_html=True)
+    
+    try:
+        from macroclaw.memory.predictions import get_all_predictions
+        preds = get_all_predictions()
+    except Exception as e:
+        st.warning(f"Could not load predictions: {e}")
+        return
+
+    if not preds:
+        st.markdown('<div class="empty-state">No predictions saved yet. Run an analysis to track logic.</div>', unsafe_allow_html=True)
+        return
+
+    # Evaluate predictions
+    wins = 0
+    losses = 0
+    pending = 0
+    
+    rows = []
+    
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    
+    for p in preds:
+        # p is dict with id, timestamp, asset, ticker, signal, price_at_prediction, executive_summary
+        t_str = p.get('timestamp', '')
+        asset = p.get('asset', 'Unknown')
+        ticker = p.get('ticker', '')
+        signal = str(p.get('signal', '')).upper()
+        old_price = float(p.get('price_at_prediction', 0))
+        
+        # Get current price
+        try:
+            df = fetch_ohlcv(ticker, "1d")
+            if not df.empty:
+                current_price = df.iloc[-1]["Close"]
+            else:
+                current_price = old_price
+        except Exception:
+            current_price = old_price
+            
+        change_pct = ((current_price - old_price) / old_price) * 100 if old_price > 0 else 0
+        
+        status = "PENDING"
+        # Let's say if signal was BULLISH and change_pct > 0.1 -> WIN
+        # If signal BEARISH and change_pct < -0.1 -> WIN
+        if signal == "BULLISH":
+            if change_pct > 0.1: status = "WIN 🟢"; wins += 1
+            elif change_pct < -0.1: status = "LOSS 🔴"; losses += 1
+            else: pending += 1
+        elif signal == "BEARISH":
+            if change_pct < -0.1: status = "WIN 🟢"; wins += 1
+            elif change_pct > 0.1: status = "LOSS 🔴"; losses += 1
+            else: pending += 1
+        else:
+            status = "NEUTRAL ➖"
+            pending += 1
+            
+        date_short = t_str[:16].replace("T", " ") if t_str else "Unknown"
+        rows.append({
+            "Date": date_short,
+            "Asset": asset,
+            "Signal": signal,
+            "Pred Price": f"${old_price:,.2f}",
+            "Current Price": f"${current_price:,.2f}",
+            "Change %": f"{change_pct:+.2f}%",
+            "Result": status
+        })
+        
+    # Metrics
+    c1, c2, c3, c4 = st.columns(4)
+    total = wins + losses
+    win_rate = (wins / total * 100) if total > 0 else 0
+    c1.metric("Win Rate", f"{win_rate:.1f}%")
+    c2.metric("Wins 🟢", wins)
+    c3.metric("Losses 🔴", losses)
+    c4.metric("Pending/Neutral ➖", pending)
+    
+    st.dataframe(
+        pd.DataFrame(rows), 
+        use_container_width=True, 
+        hide_index=True 
+    )
 def main() -> None:
     st.session_state.setdefault("brief", {})
     st.session_state.setdefault("running", False)
@@ -1054,10 +1178,11 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    t_market, t_news, t_brief = st.tabs([
+    t_market, t_news, t_brief, t_scoring = st.tabs([
         "  📈  Market  ",
         "  🌍  News  ",
         "  📋  Brief  ",
+        "  🎯  Scoring & Win Rate  ",
     ])
 
     with t_market:
@@ -1089,6 +1214,7 @@ def main() -> None:
                 st.toast("Investment brief ready.", icon="✅")
             except Exception as e:
                 pb.empty()
+                import traceback; traceback.print_exc()
                 st.error(f"Analysis failed: {e}")
             st.session_state.running = False
             st.rerun()
@@ -1107,6 +1233,9 @@ def main() -> None:
             f'Refresh in {int(opts["interval"] - elapsed)}s</div>',
             unsafe_allow_html=True,
         )
+        
+    with t_scoring:
+        tab_scoring()
 
 
 if __name__ == "__main__":
